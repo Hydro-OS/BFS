@@ -26,6 +26,7 @@ Chunk Description | Size (bytes) | Data type
 Relative path (null terminated, ASCII) | Any | string
 Size (in bytes) | 4 | uint
 Compressed data | As specified above | byte[]
+
 These file records repeat until the end of the file. All file data is compressed using LZF.
 
 ## Versions
