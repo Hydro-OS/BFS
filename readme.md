@@ -8,6 +8,11 @@ The available verbs are:
 * compress - Compresses a folder to a BFS file
 * extract - Extracts a BFS file to a folder.
 
+### Ignore List
+You can create a "ignore file list" to make the compressor ignore certain files. The file must be in the root of the target directory, and needs to be named "BFS_IGNORE". Incorrect paths will be ignored.
+
+**To disable this behaviour, add "-I false" to the CLI arguments, or, if you're using the class as an API, change the "useIgnoreFile" parameter to be false.**
+
 ### Examples
 Extract a file named "archive.bfs" in the C:\ drive to a folder located in "D:\ArchiveContents\"
 `bfs extract -i C:\archive.bfs -o D:\ArchiveContents\`
