@@ -1,12 +1,11 @@
 ﻿using CommandLine;
 using System;
 using System.IO;
-using System.Linq;
 
 namespace BFS
 {
     /// <summary>
-    /// The main program entry point.
+    /// The main program entry point. (CLI)
     /// </summary>
     static class Program
     {
@@ -27,6 +26,13 @@ namespace BFS
             /// </summary>
             [Option('o', "output", Required = true, HelpText = "The output file.")]
             public string Output { get; set; }
+
+            /// <summary>
+            /// If set to true, the compressor will ignore the files that are listed in the ignore file. (see <see cref="BFSCompress.IgnoreFileName"/>)
+            /// </summary>
+            [Option('I', "useIgnoreFile", Required = false, Default = true, 
+                HelpText = "If set to true, the compressor will ignore the files that are listed in the " + BFSCompress.IgnoreFileName + " file.")]
+            public bool UseIgnoreFile { get; set; }
         }
         /// <summary>
         /// The command-line options, when extracting.
@@ -97,7 +103,7 @@ namespace BFS
                 return;
             }
 
-            byte[] bfs = BFSCompress.CompressBFS(opts.Input);
+            byte[] bfs = BFSCompress.CompressBFS(opts.Input, opts.UseIgnoreFile);
 
             Console.ForegroundColor = ConsoleColor.Green;
             Console.WriteLine("Compressed to BFS with file size of " + bfs.Length + "b.");

@@ -1,4 +1,10 @@
-﻿using ShellProgressBar;
+﻿// Comment this line if not using the Command Line Interface
+#define CLI
+
+#if CLI
+using ShellProgressBar;
+#endif
+
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -13,15 +19,29 @@ public static class BFSCompress
     /// <summary>
     /// The null-terminator, that ends all strings in the file.
     /// </summary>
-    private const byte NullTerminator = 0x00;
+    const byte NullTerminator = 0x00;
+
+    /// <summary>
+    /// The ignore-file.
+    /// </summary>
+    public const string IgnoreFileName = "BFS_IGNORE";
 
     /// <summary>
     /// Enumerates through all files in a folder, and creates a BFS archive of it.
     /// </summary>
     /// <param name="path">The target path.</param>
+    /// <param name="useIgnoreFile">If set to true, the compressor will use the ignore list file in the target directory.</param>
     /// <returns>The BFS archive.</returns>
-    public static byte[] CompressBFS(string path) 
+    public static byte[] CompressBFS(string path, bool useIgnoreFile = true) 
     {
+        string[] filesToIgnore;
+
+        string bfsIgnorePath = Path.Combine(path, IgnoreFileName);
+
+        if (useIgnoreFile && File.Exists(bfsIgnorePath))
+            filesToIgnore = File.ReadAllLines(bfsIgnorePath);
+        else filesToIgnore = Array.Empty<string>();
+
         // This will contain the BFS data
         List<byte> bfs = new List<byte>
         {
@@ -32,17 +52,22 @@ public static class BFSCompress
         // Get all files to compress
         IEnumerable<string> filesToCompress = Directory.EnumerateFiles(path, "*", SearchOption.AllDirectories);
 
-        // The count of files to compress
-        int files = filesToCompress.Count();
-
-        using (ProgressBar progressBar = new ProgressBar(files, "Compressing to BFS..."))
+#if CLI
+        using (ProgressBar progressBar = new ProgressBar(filesToCompress.Count(), "Compressing to BFS..."))
         {
+#endif
             // Enumerate through all files
             foreach (string file in filesToCompress)
             {
+                if (filesToIgnore.Contains(file))
+                    continue; // Skip
+
                 // Get the relative path of the current file
                 string filePath = Path.GetRelativePath(path, file);
+
+#if CLI
                 progressBar.Message = "Compressing file " + filePath + "...";
+#endif
 
                 bfs.AddRange(Encoding.ASCII.GetBytes(filePath)); // Add file path
                 bfs.Add(NullTerminator); // Null-terminate
@@ -56,10 +81,14 @@ public static class BFSCompress
                 // Add actual data
                 bfs.AddRange(compressedData);
 
+#if CLI
                 // Report progress
                 progressBar.Tick();
+#endif
             }
+#if CLI
         }
+#endif
 
         // Return the ready BFS file as an byte array
         return bfs.ToArray();
@@ -85,7 +114,9 @@ public static class BFSCompress
         // The BFS file without the signature
         IEnumerable<byte> bfsFile = bfs.Skip(signature.Length);
 
+#if CLI
         using ProgressBar progressBar = new ProgressBar(bfsFile.Count(), "Decompressing BFS archive...");
+#endif
 
         for (int currentByte = 0; currentByte < bfsFile.Count(); currentByte++)
         {
@@ -98,7 +129,11 @@ public static class BFSCompress
                 byte charByte = bfsFile.ElementAt(currentByte);
 
                 // Skip 1 byte that we've just read
+#if CLI
                 AdvanceCounter(ref currentByte, 1, progressBar);
+#else
+                currentByte++;
+#endif
 
                 if (charByte == NullTerminator) break; // Stop loop if the character is a null terminator
 
@@ -109,10 +144,15 @@ public static class BFSCompress
             // Get size of the data
             uint size = BitConverter.ToUInt32(bfsFile.Skip(currentByte).Take( sizeof(uint) ).ToArray());
 
+#if CLI
             // Skip the uint we've just read
             AdvanceCounter(ref currentByte, sizeof(uint), progressBar);
 
             progressBar.Message = "Decompressing file " + relativePath + "...";
+#else
+            // Skip the uint we've just read
+            currentByte += sizeof(uint);
+#endif
 
             // Get compressed data
             byte[] data = bfsFile.Skip(currentByte).Take( (int) size ).ToArray();
@@ -120,12 +160,19 @@ public static class BFSCompress
             // Uncompress the data
             byte[] uncompressedData = CLZF2.Decompress(data);
 
+#if CLI
             // Skip the data we've read (we are subtracting 1, to make it zero-based)
             AdvanceCounter(ref currentByte, data.Length - 1, progressBar);
+#else
+            // Skip the data we've read (we are subtracting 1, to make it zero-based)
+            currentByte += data.Length - 1;
+#endif
 
             #region Write actual file
 
+#if CLI
             progressBar.Message = "Writing file " + relativePath + "...";
+#endif
 
             // Get target path (output + relative path)
             string targetPath = Path.Join(output, relativePath);
@@ -138,13 +185,16 @@ public static class BFSCompress
 
             #endregion
 
+#if CLI
             progressBar.Tick();
+#endif
         }
 
     }
 
+#if CLI
     /// <summary>
-    /// Advances a counter, while updating a progress bar at the same time.
+    /// Advances a counter, while updating a progress bar at the same time (if using the CLI).
     /// </summary>
     /// <param name="counter">The target counter.</param>
     /// <param name="by">How much should we advance the counter by?</param>
@@ -154,5 +204,6 @@ public static class BFSCompress
         counter += by;        // Advance counter
         progressBar.Tick(by); // Report progress
     }
+#endif
 }
 
